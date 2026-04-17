@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  testclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: testclaw
+    ports:
+      - "4318:4318"
+    environment:
+      PORT: 4318
+      HOST: 0.0.0.0
+    volumes:
+      - ./.data:/app/.data
+    restart: unless-stopped
+

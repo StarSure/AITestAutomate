@@ -1,4 +1,4 @@
-# AI Testing Platform
+# TestClaw
 
 An open-source AI automation testing platform for QA teams.
 
@@ -14,7 +14,8 @@ It currently focuses on one clear scenario:
 - Generate API test cases
 - Run tests and show reports
 - Explain failures with readable output
-- Persist workspace state locally
+- Persist workspace state with SQLite
+- Start with Docker Compose
 
 ## Quick Start
 
@@ -45,6 +46,18 @@ Open:
 
 ```text
 http://localhost:5173
+```
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:4318
 ```
 
 ## Documentation

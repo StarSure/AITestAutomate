@@ -100,7 +100,7 @@ type Workspace = {
 type NavKey = "dashboard" | "project" | "discover" | "cases" | "reports";
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:4318";
-const githubRepoUrl = "https://github.com/StarSure/open-regression-copilot";
+const githubRepoUrl = "https://github.com/StarSure/testclaw";
 
 const navItems: Array<{ key: NavKey; label: string; icon: React.ReactNode }> = [
   { key: "dashboard", label: "总览", icon: <LayoutDashboard size={18} /> },
@@ -230,14 +230,14 @@ function App() {
             <Radar size={18} />
           </span>
           <div>
-            <strong>AI测试平台</strong>
-            <small>Open Regression Copilot</small>
+            <strong>TestClaw</strong>
+            <small>AI Testing Platform</small>
           </div>
         </div>
 
         <div className="sidebar-project">
           <span className="sidebar-label">当前项目</span>
-          <strong>AI测试平台</strong>
+          <strong>TestClaw</strong>
           <small>{workspace?.project.environmentName ?? "-"}</small>
         </div>
 
@@ -269,7 +269,7 @@ function App() {
       <section className="main-panel">
         <header className="page-header">
           <div>
-            <h1>AI 自动化测试平台</h1>
+            <h1>TestClaw</h1>
             <p>面向测试团队的接口发现、测试生成与回归执行平台。</p>
           </div>
           <div className="header-actions">

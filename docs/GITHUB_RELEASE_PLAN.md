@@ -6,15 +6,15 @@
 
 推荐：
 
-- `open-regression-copilot`
+- `testclaw`
 
 也可以考虑：
 
-- `ai-regression-lab`
-- `qa-api-copilot`
-- `open-qa-regression`
+- `testhub`
+- `testclaw`
+- `testforge`
 
-如果你想更像平台名，继续用 `open-regression-copilot` 最稳。
+如果你想更像产品名，`testclaw` 会更短、更像工具。
 
 ## GitHub 仓库简介
 
@@ -50,11 +50,11 @@
 
 中文：
 
-> Open Regression Copilot 是一个面向测试团队的开源 AI 自动化测试平台。第一版先聚焦接口测试场景，支持从网页流量中自动发现接口、生成测试用例、执行测试并输出报告。欢迎试用、提 issue 和一起共建。
+> TestClaw 是一个面向测试团队的开源 AI 自动化测试平台。第一版先聚焦接口测试场景，支持从网页流量中自动发现接口、生成测试用例、执行测试并输出报告。欢迎试用、提 issue 和一起共建。
 
 英文：
 
-> Open Regression Copilot is an open-source AI testing platform for QA teams. The first version focuses on API testing workflows: discover APIs from web traffic, generate test cases, run regression checks, and review reports. Feedback and contributions are welcome.
+> TestClaw is an open-source AI testing platform for QA teams. The first version focuses on API testing workflows: discover APIs from web traffic, generate test cases, run regression checks, and review reports. Feedback and contributions are welcome.
 
 ## 发布前检查清单
 
@@ -76,4 +76,3 @@
 3. 补截图
 4. 写第一版发布说明
 5. 发到测试、开发、开源社区收集反馈
-

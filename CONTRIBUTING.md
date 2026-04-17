@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping build Open Regression Copilot.
+Thanks for helping build TestClaw.
 
 ## Development Setup
 
@@ -37,4 +37,3 @@ Good first areas:
 - Run `npm run check`.
 - Run `npm run build`.
 - Do not include real secrets, tokens, cookies, or production traffic.
-

@@ -1,18 +1,18 @@
 {
-  "name": "open-regression-copilot",
+  "name": "testclaw",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source AI regression and API testing platform for QA teams.",
+  "description": "TestClaw is an open-source AI testing platform for QA teams.",
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @orc/api & npm run dev --workspace @orc/web",
-    "dev:api": "npm run dev --workspace @orc/api",
-    "dev:web": "npm run dev --workspace @orc/web",
-    "build": "npm run build --workspace @orc/api && npm run build --workspace @orc/web",
-    "check": "npm run check --workspace @orc/api && npm run check --workspace @orc/web",
-    "start": "npm run start --workspace @orc/api"
+    "dev": "npm run dev --workspace @testclaw/api & npm run dev --workspace @testclaw/web",
+    "dev:api": "npm run dev --workspace @testclaw/api",
+    "dev:web": "npm run dev --workspace @testclaw/web",
+    "build": "npm run build --workspace @testclaw/api && npm run build --workspace @testclaw/web",
+    "check": "npm run check --workspace @testclaw/api && npm run check --workspace @testclaw/web",
+    "start": "npm run start --workspace @testclaw/api"
   },
   "keywords": [
     "ai-testing",
@@ -23,4 +23,3 @@
   ],
   "license": "Apache-2.0"
 }
-

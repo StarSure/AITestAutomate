@@ -1,6 +1,6 @@
 # Security Policy
 
-Open Regression Copilot can process browser traffic, headers, cookies, tokens, request bodies, and response bodies.
+TestClaw can process browser traffic, headers, cookies, tokens, request bodies, and response bodies.
 
 Use it carefully.
 
@@ -16,4 +16,3 @@ Use it carefully.
 This project is in early local MVP stage.
 
 If you find a security issue, please open a private report when the GitHub repository is available, or contact the maintainers directly.
-

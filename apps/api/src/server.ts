@@ -1,23 +1,35 @@
 import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { z } from "zod";
 import { parseHar, runTestCases } from "./discovery.js";
-import { createWorkspace, loadState, replaceWorkspace, saveState, updateProject } from "./storage.js";
+import { createWorkspace, initStorage, loadState, replaceWorkspace, saveState, updateProject } from "./storage.js";
 import type { ProjectSettings, RawRequest, WorkspaceState } from "./types.js";
 
 const app = Fastify({
   logger: true
 });
 
+await initStorage();
 let state: WorkspaceState = await loadState();
 
 await app.register(cors, {
   origin: true
 });
 
+const webDistPath = resolve(process.cwd(), "apps/web/dist");
+if (existsSync(webDistPath)) {
+  await app.register(fastifyStatic, {
+    root: webDistPath,
+    prefix: "/"
+  });
+}
+
 app.get("/health", async () => ({
   ok: true,
-  service: "open-regression-copilot-api"
+  service: "testclaw-api"
 }));
 
 app.get("/api/workspace", async () => serializeState(state));
@@ -148,6 +160,17 @@ app.post("/api/tests/run", async () => {
       skipped: state.lastRun.filter((result) => result.status === "skipped").length
     },
     workspace: serializeState(state)
+  };
+});
+
+app.get("/", async (_request, reply) => {
+  if (existsSync(resolve(webDistPath, "index.html"))) {
+    return reply.sendFile("index.html");
+  }
+
+  return {
+    ok: true,
+    message: "TestClaw API is running. Build the web app to serve the frontend from this service."
   };
 });
 
