@@ -59,14 +59,17 @@ export async function loadState(): Promise<WorkspaceState> {
 
   const parsedProject = JSON.parse(row.project_json) as ProjectSettings;
   const parsedRequests = JSON.parse(row.requests_json) as RawRequest[];
-  const parsedLastRun = JSON.parse(row.last_run_json) as WorkspaceState["lastRun"];
+  const parsedLastRunPayload = JSON.parse(row.last_run_json) as
+    | WorkspaceState["lastRun"]
+    | { lastRun?: WorkspaceState["lastRun"]; capturedElements?: WorkspaceState["capturedElements"] };
 
   const hydrated = hydrateState({
     project: parsedProject,
     rawRequests: parsedRequests,
     endpoints: [],
     testCases: [],
-    lastRun: parsedLastRun,
+    lastRun: Array.isArray(parsedLastRunPayload) ? parsedLastRunPayload : parsedLastRunPayload.lastRun ?? [],
+    capturedElements: Array.isArray(parsedLastRunPayload) ? [] : parsedLastRunPayload.capturedElements ?? [],
     updatedAt: row.updated_at
   });
 
@@ -87,6 +90,7 @@ export function createWorkspace(rawRequests: RawRequest[], project: ProjectSetti
     endpoints,
     testCases,
     lastRun: [],
+    capturedElements: [],
     updatedAt: new Date().toISOString()
   };
 }
@@ -98,7 +102,8 @@ export function replaceWorkspace(current: WorkspaceState, rawRequests: RawReques
 export function updateProject(current: WorkspaceState, project: ProjectSettings) {
   return {
     ...createWorkspace(current.rawRequests, project),
-    lastRun: current.lastRun
+    lastRun: current.lastRun,
+    capturedElements: current.capturedElements ?? []
   };
 }
 
@@ -119,6 +124,7 @@ function hydrateState(parsed: WorkspaceState): WorkspaceState {
   return {
     ...createWorkspace(parsed.rawRequests ?? sampleRequests, project),
     lastRun: parsed.lastRun ?? [],
+    capturedElements: parsed.capturedElements ?? [],
     updatedAt: parsed.updatedAt ?? new Date().toISOString()
   };
 }
@@ -137,7 +143,10 @@ function persistWorkspace(state: WorkspaceState) {
     .run({
       project_json: JSON.stringify(state.project),
       requests_json: JSON.stringify(state.rawRequests),
-      last_run_json: JSON.stringify(state.lastRun),
+      last_run_json: JSON.stringify({
+        lastRun: state.lastRun,
+        capturedElements: state.capturedElements ?? []
+      }),
       updated_at: state.updatedAt
     });
 }

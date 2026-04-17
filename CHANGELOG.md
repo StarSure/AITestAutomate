@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Built the first public MVP of AITestAutomate.
 - Added a Chinese control panel with left navigation and right work area.
 - Added API discovery from OpenAPI, Postman, HAR, cURL, and manual request samples.
+- Added basic web capture support for page elements and requests.
 - Added automatic API inventory generation and test case generation.
 - Added test execution reports and AI-style failure explanations.
 - Added local workspace persistence.

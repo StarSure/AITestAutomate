@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
+import { capturePageSession } from "./browserCapture.js";
 import { parseHar, runTestCases } from "./discovery.js";
 import { parseCurl, parseOpenApi, parsePostmanCollection } from "./importers.js";
 import { createWorkspace, initStorage, loadState, replaceWorkspace, saveState, updateProject } from "./storage.js";
@@ -222,6 +223,43 @@ app.post("/api/tests/run", async () => {
   };
 });
 
+const webCaptureSchema = z.object({
+  url: z.string().url(),
+  username: z.string().optional(),
+  password: z.string().optional()
+});
+
+app.post("/api/capture/web", async (request, reply) => {
+  const result = webCaptureSchema.safeParse(request.body);
+  if (!result.success) {
+    return reply.status(400).send({ ok: false, error: result.error.flatten() });
+  }
+
+  try {
+    const session = await capturePageSession(result.data);
+    state = replaceWorkspace(state, session.requests);
+    state.capturedElements = session.elements;
+    state.project = {
+      ...state.project,
+      baseUrl: new URL(result.data.url).origin
+    };
+    state.updatedAt = new Date().toISOString();
+    await saveState(state);
+
+    return {
+      ok: true,
+      finalUrl: session.finalUrl,
+      title: session.title,
+      loginAttempted: session.loginAttempted,
+      importedRequests: session.requests.length,
+      capturedElements: session.elements.length,
+      workspace: serializeState(state)
+    };
+  } catch (error) {
+    return reply.status(500).send({ ok: false, error: String(error) });
+  }
+});
+
 app.get("/", async (_request, reply) => {
   if (existsSync(resolve(webDistPath, "index.html"))) {
     return reply.sendFile("index.html");
@@ -245,7 +283,8 @@ function serializeState(current: WorkspaceState) {
     },
     endpoints: current.endpoints,
     testCases: current.testCases,
-    lastRun: current.lastRun
+    lastRun: current.lastRun,
+    capturedElements: current.capturedElements ?? []
   };
 }
 

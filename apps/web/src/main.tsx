@@ -95,9 +95,18 @@ type Workspace = {
   endpoints: Endpoint[];
   testCases: TestCase[];
   lastRun: RunResult[];
+  capturedElements?: Array<{
+    id: string;
+    tag: string;
+    text: string;
+    role: string | null;
+    name: string | null;
+    placeholder: string | null;
+    selectorHint: string;
+  }>;
 };
 
-type NavKey = "dashboard" | "project" | "discover" | "cases" | "reports";
+type NavKey = "dashboard" | "project" | "discover" | "capture" | "cases" | "reports";
 type ImportMode = "openapi" | "postman" | "har" | "curl" | "manual";
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:4318";
@@ -107,6 +116,7 @@ const navItems: Array<{ key: NavKey; label: string; icon: React.ReactNode }> = [
   { key: "dashboard", label: "总览", icon: <LayoutDashboard size={18} /> },
   { key: "project", label: "项目配置", icon: <Settings2 size={18} /> },
   { key: "discover", label: "接口发现", icon: <Upload size={18} /> },
+  { key: "capture", label: "网页抓取", icon: <Radar size={18} /> },
   { key: "cases", label: "测试用例", icon: <FlaskConical size={18} /> },
   { key: "reports", label: "执行报告", icon: <Workflow size={18} /> }
 ];
@@ -117,6 +127,9 @@ function App() {
   const [selectedNav, setSelectedNav] = useState<NavKey>("dashboard");
   const [importMode, setImportMode] = useState<ImportMode>("openapi");
   const [selectedEndpoint, setSelectedEndpoint] = useState<string | null>(null);
+  const [captureUrl, setCaptureUrl] = useState("https://demo-shop.local");
+  const [captureUsername, setCaptureUsername] = useState("admin");
+  const [capturePassword, setCapturePassword] = useState("REDACTED_PASSWORD");
   const [openApiText, setOpenApiText] = useState(defaultOpenApiText);
   const [postmanText, setPostmanText] = useState(defaultPostmanText);
   const [harText, setHarText] = useState("");
@@ -235,6 +248,22 @@ function App() {
     });
   }
 
+  async function captureWebPage() {
+    await action("网页抓取完成，已更新接口和元素结果。", async () => {
+      await fetch(`${apiBase}/api/capture/web`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          url: captureUrl,
+          username: captureUsername,
+          password: capturePassword
+        })
+      });
+      await loadWorkspace();
+      setSelectedNav("capture");
+    });
+  }
+
   async function loadHarFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -334,7 +363,7 @@ function App() {
             <Panel title="平台说明" icon={<Bot size={18} />}>
               <div className="info-block">
                 <p>当前版本聚焦接口自动化测试。</p>
-                <p>你可以导入 OpenAPI、Postman、HAR、cURL 或请求样本，系统会自动识别业务接口、生成测试用例，并执行回归检查。</p>
+                <p>你可以导入 OpenAPI、Postman、HAR、cURL 或请求样本，也可以直接输入网页地址进行自动抓取。</p>
                 <p>后续会继续接入网页录制、Playwright 抓接口、测试历史持久化和 GitHub 集成。</p>
               </div>
             </Panel>
@@ -583,6 +612,46 @@ function App() {
                   <EmptyText text="还没有执行记录，点击“运行测试”开始。" />
                 ) : (
                   workspace?.lastRun.map((result) => <RunResultCard key={result.id} result={result} />)
+                )}
+              </div>
+            </Panel>
+          </section>
+        ) : null}
+
+        {selectedNav === "capture" ? (
+          <section className="content-grid two-col">
+            <Panel title="网页抓取" icon={<Radar size={18} />} action={<button className="primary-button inline-button" onClick={captureWebPage} disabled={busy}><Play size={16} />开始抓取</button>}>
+              <div className="project-form">
+                <FormField label="目标地址">
+                  <input value={captureUrl} onChange={(event) => setCaptureUrl(event.target.value)} />
+                </FormField>
+                <div className="form-grid">
+                  <FormField label="用户名">
+                    <input value={captureUsername} onChange={(event) => setCaptureUsername(event.target.value)} />
+                  </FormField>
+                  <FormField label="密码">
+                    <input type="password" value={capturePassword} onChange={(event) => setCapturePassword(event.target.value)} />
+                  </FormField>
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="页面元素结果" icon={<Braces size={18} />}>
+              <div className="test-list">
+                {(workspace?.capturedElements ?? []).length === 0 ? (
+                  <EmptyText text="还没有抓到页面元素，请先执行网页抓取。" />
+                ) : (
+                  workspace?.capturedElements?.slice(0, 30).map((element) => (
+                    <div key={element.id} className="test-card">
+                      <div>
+                        <strong>{element.tag}</strong>
+                        <small>{element.selectorHint}</small>
+                      </div>
+                      <div className="test-meta">
+                        <span className="enabled">{element.text || element.placeholder || element.name || "无文本"}</span>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </Panel>

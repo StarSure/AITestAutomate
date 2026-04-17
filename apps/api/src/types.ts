@@ -90,6 +90,14 @@ export type WorkspaceState = {
   endpoints: ApiEndpoint[];
   testCases: ApiTestCase[];
   lastRun: TestRunResult[];
+  capturedElements?: Array<{
+    id: string;
+    tag: string;
+    text: string;
+    role: string | null;
+    name: string | null;
+    placeholder: string | null;
+    selectorHint: string;
+  }>;
   updatedAt: string;
 };
-
