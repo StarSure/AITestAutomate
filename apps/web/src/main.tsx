@@ -101,7 +101,7 @@ type NavKey = "dashboard" | "project" | "discover" | "cases" | "reports";
 type ImportMode = "openapi" | "postman" | "har" | "curl" | "manual";
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:4318";
-const githubRepoUrl = "https://github.com/StarSure/testclaw";
+const githubRepoUrl = "https://github.com/StarSure/AITestAutomate";
 
 const navItems: Array<{ key: NavKey; label: string; icon: React.ReactNode }> = [
   { key: "dashboard", label: "总览", icon: <LayoutDashboard size={18} /> },

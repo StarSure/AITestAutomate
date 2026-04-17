@@ -3,24 +3,24 @@
   <h1>TestClaw</h1>
   <p><strong>面向测试团队的开源 AI 自动化测试平台，支持接口发现、测试用例生成与回归执行。</strong></p>
   <p>
-    <a href="https://github.com/StarSure/testclaw/blob/main/README.md">中文</a>
+    <a href="https://github.com/StarSure/AITestAutomate/blob/main/README.md">中文</a>
     ·
-    <a href="https://github.com/StarSure/testclaw/blob/main/README_EN.md">English</a>
+    <a href="https://github.com/StarSure/AITestAutomate/blob/main/README_EN.md">English</a>
     ·
-    <a href="https://github.com/StarSure/testclaw#本地启动">快速开始</a>
+    <a href="https://github.com/StarSure/AITestAutomate#本地启动">快速开始</a>
     ·
-    <a href="https://github.com/StarSure/testclaw/tree/main/docs">完整文档</a>
+    <a href="https://github.com/StarSure/AITestAutomate/tree/main/docs">完整文档</a>
     ·
-    <a href="https://github.com/StarSure/testclaw/blob/main/CHANGELOG.md">更新日志</a>
+    <a href="https://github.com/StarSure/AITestAutomate/blob/main/CHANGELOG.md">更新日志</a>
     ·
-    <a href="https://github.com/StarSure/testclaw/blob/main/docs/FAQ.md">FAQ</a>
+    <a href="https://github.com/StarSure/AITestAutomate/blob/main/docs/FAQ.md">FAQ</a>
   </p>
   <p>
-    <img src="https://img.shields.io/github/license/StarSure/testclaw?style=for-the-badge" alt="license" />
+    <img src="https://img.shields.io/github/license/StarSure/AITestAutomate?style=for-the-badge" alt="license" />
     <img src="https://img.shields.io/badge/Node.js-20%2B-4b8b3b?style=for-the-badge" alt="node" />
     <img src="https://img.shields.io/badge/SQLite-enabled-2f6d99?style=for-the-badge" alt="sqlite" />
     <img src="https://img.shields.io/badge/Docker-ready-1d63ed?style=for-the-badge" alt="docker" />
-    <img src="https://img.shields.io/github/stars/StarSure/testclaw?style=for-the-badge" alt="stars" />
+    <img src="https://img.shields.io/github/stars/StarSure/AITestAutomate?style=for-the-badge" alt="stars" />
   </p>
 </div>
 
