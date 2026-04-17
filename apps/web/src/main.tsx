@@ -100,6 +100,7 @@ type Workspace = {
 type NavKey = "dashboard" | "project" | "discover" | "cases" | "reports";
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:4318";
+const githubRepoUrl = "https://github.com/StarSure/open-regression-copilot";
 
 const navItems: Array<{ key: NavKey; label: string; icon: React.ReactNode }> = [
   { key: "dashboard", label: "总览", icon: <LayoutDashboard size={18} /> },
@@ -229,14 +230,14 @@ function App() {
             <Radar size={18} />
           </span>
           <div>
-            <strong>自动化测试平台</strong>
+            <strong>AI测试平台</strong>
             <small>Open Regression Copilot</small>
           </div>
         </div>
 
         <div className="sidebar-project">
           <span className="sidebar-label">当前项目</span>
-          <strong>{workspace?.project.name ?? "加载中..."}</strong>
+          <strong>AI测试平台</strong>
           <small>{workspace?.project.environmentName ?? "-"}</small>
         </div>
 
@@ -258,9 +259,9 @@ function App() {
             <span className="sidebar-label">状态</span>
             <p>{statusMessage}</p>
           </div>
-          <a href="https://github.com" target="_blank" rel="noreferrer" className="sidebar-link">
+          <a href={githubRepoUrl} target="_blank" rel="noreferrer" className="sidebar-link">
             <GitBranch size={16} />
-            GitHub 发布准备中
+            打开 GitHub 仓库
           </a>
         </div>
       </aside>

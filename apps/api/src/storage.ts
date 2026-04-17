@@ -7,8 +7,8 @@ import type { ProjectSettings, RawRequest, WorkspaceState } from "./types.js";
 const storagePath = resolve(process.cwd(), ".data", "workspace.json");
 
 const defaultProject: ProjectSettings = {
-  name: "Demo Shop Regression Lab",
-  description: "Community edition workspace for API discovery and regression testing.",
+  name: "AI测试平台",
+  description: "面向测试团队的开源 AI 自动化测试平台。",
   baseUrl: "https://demo-shop.local",
   environmentName: "staging",
   authMode: "bearer",
@@ -64,10 +64,17 @@ function hydrateState(parsed: WorkspaceState): WorkspaceState {
     ...parsed.project
   };
 
+  if (project.name === "Demo Shop Regression Lab") {
+    project.name = "AI测试平台";
+  }
+
+  if (project.description === "Community edition workspace for API discovery and regression testing.") {
+    project.description = "面向测试团队的开源 AI 自动化测试平台。";
+  }
+
   return {
     ...createWorkspace(parsed.rawRequests ?? sampleRequests, project),
     lastRun: parsed.lastRun ?? [],
     updatedAt: parsed.updatedAt ?? new Date().toISOString()
   };
 }
-
