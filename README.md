@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="./assets/brand/logo.svg" alt="AI测试平台 Logo" width="140" />
   <h1>AI测试平台</h1>
   <p><strong>面向测试团队的开源 AI 自动化测试平台，支持接口发现、测试用例生成与回归执行。</strong></p>
   <p>
@@ -9,6 +10,10 @@
     <a href="https://github.com/StarSure/open-regression-copilot#本地启动">快速开始</a>
     ·
     <a href="https://github.com/StarSure/open-regression-copilot/tree/main/docs">完整文档</a>
+    ·
+    <a href="https://github.com/StarSure/open-regression-copilot/blob/main/CHANGELOG.md">更新日志</a>
+    ·
+    <a href="https://github.com/StarSure/open-regression-copilot/blob/main/docs/FAQ.md">FAQ</a>
   </p>
   <p>
     <img src="https://img.shields.io/github/license/StarSure/open-regression-copilot?style=for-the-badge" alt="license" />
@@ -18,6 +23,22 @@
     <img src="https://img.shields.io/github/issues/StarSure/open-regression-copilot?style=for-the-badge" alt="issues" />
   </p>
 </div>
+
+---
+
+## 开发状态
+
+- 当前阶段：`MVP`
+- 当前重点：接口发现、测试生成、回归执行
+- 当前形态：本地可运行的开源社区版雏形
+
+---
+
+## 重要里程碑
+
+- `2026-04-17`：公开发布第一版 MVP
+- `2026-04-17`：完成中文控制台与 GitHub 开源仓库初始化
+- `2026-04-17`：补充项目截图、双语 README、FAQ 与更新日志
 
 ---
 
@@ -217,14 +238,15 @@ npm run build
 - [技术架构](./docs/ARCHITECTURE.md)
 - [接口测试策略](./docs/API_TESTING_STRATEGY.md)
 - [Flow Spec 设计](./docs/FLOW_SPEC.md)
+- [常见问题](./docs/FAQ.md)
 - [路线图](./docs/ROADMAP.md)
 - [开源计划](./docs/OPEN_SOURCE_PLAN.md)
 - [GitHub 发布计划](./docs/GITHUB_RELEASE_PLAN.md)
 - [发布检查清单](./docs/RELEASE_CHECKLIST.md)
+- [更新日志](./CHANGELOG.md)
 
 ---
 
 ## 开源协议
 
 Apache-2.0
-
