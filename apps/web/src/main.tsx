@@ -83,6 +83,34 @@ type RunResult = {
   aiExplanation: string;
 };
 
+type RunHistoryItem = {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  summary: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    total: number;
+  };
+  results: RunResult[];
+};
+
+type CaptureTask = {
+  id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  message: string;
+  url: string;
+  startedAt: string;
+  finishedAt?: string;
+  finalUrl?: string;
+  title?: string;
+  loginAttempted?: boolean;
+  importedRequests?: number;
+  capturedElements?: number;
+  error?: string;
+};
+
 type Workspace = {
   project: Project;
   summary: {
@@ -93,8 +121,10 @@ type Workspace = {
     updatedAt: string;
   };
   endpoints: Endpoint[];
+  selectedEndpointIds: string[];
   testCases: TestCase[];
   lastRun: RunResult[];
+  runHistory: RunHistoryItem[];
   capturedElements?: Array<{
     id: string;
     tag: string;
@@ -127,6 +157,9 @@ function App() {
   const [selectedNav, setSelectedNav] = useState<NavKey>("dashboard");
   const [importMode, setImportMode] = useState<ImportMode>("openapi");
   const [selectedEndpoint, setSelectedEndpoint] = useState<string | null>(null);
+  const [selectedEndpointIds, setSelectedEndpointIds] = useState<string[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [captureTask, setCaptureTask] = useState<CaptureTask | null>(null);
   const [captureUrl, setCaptureUrl] = useState("");
   const [captureUsername, setCaptureUsername] = useState("");
   const [capturePassword, setCapturePassword] = useState("");
@@ -142,6 +175,18 @@ function App() {
     void loadWorkspace();
   }, []);
 
+  useEffect(() => {
+    if (!captureTask || !["queued", "running"].includes(captureTask.status)) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      void syncCaptureTask(captureTask.id);
+    }, 1400);
+
+    return () => window.clearInterval(timer);
+  }, [captureTask]);
+
   const activeEndpoint = useMemo(() => {
     if (!workspace) {
       return null;
@@ -153,6 +198,10 @@ function App() {
   const passed = workspace?.lastRun.filter((result) => result.status === "passed").length ?? 0;
   const failed = workspace?.lastRun.filter((result) => result.status === "failed").length ?? 0;
   const skipped = workspace?.lastRun.filter((result) => result.status === "skipped").length ?? 0;
+  const activeRun = useMemo(() => {
+    const history = workspace?.runHistory ?? [];
+    return history.find((run) => run.id === selectedRunId) ?? history[0] ?? null;
+  }, [selectedRunId, workspace]);
 
   async function loadWorkspace() {
     const response = await fetch(`${apiBase}/api/workspace`);
@@ -160,6 +209,8 @@ function App() {
     setWorkspace(data);
     setProjectDraft(data.project);
     setSelectedEndpoint((current) => current ?? data.endpoints[0]?.id ?? null);
+    setSelectedEndpointIds(data.selectedEndpointIds ?? data.endpoints.map((endpoint) => endpoint.id));
+    setSelectedRunId((current) => current ?? data.runHistory?.[0]?.id ?? null);
   }
 
   async function resetSample() {
@@ -243,14 +294,20 @@ function App() {
 
   async function runTests() {
     await action("测试执行完成，可以查看报告。", async () => {
-      await fetch(`${apiBase}/api/tests/run`, { method: "POST" });
+      const response = await fetch(`${apiBase}/api/tests/run`, { method: "POST" });
+      const data = (await response.json()) as { run?: RunHistoryItem };
+      setSelectedRunId(data.run?.id ?? null);
       await loadWorkspace();
+      setSelectedNav("reports");
     });
   }
 
   async function captureWebPage() {
-    await action("网页抓取完成，已更新接口和元素结果。", async () => {
-      await fetch(`${apiBase}/api/capture/web`, {
+    setBusy(true);
+    setStatusMessage("正在创建网页抓取任务...");
+
+    try {
+      const response = await fetch(`${apiBase}/api/capture/web`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -259,9 +316,51 @@ function App() {
           password: capturePassword
         })
       });
-      await loadWorkspace();
+      const data = (await response.json()) as { task: CaptureTask };
+      setCaptureTask(data.task);
+      setStatusMessage(data.task.message);
       setSelectedNav("capture");
+    } catch (error) {
+      setBusy(false);
+      setStatusMessage(`抓取任务创建失败：${String(error)}`);
+    }
+  }
+
+  async function syncCaptureTask(taskId: string) {
+    const response = await fetch(`${apiBase}/api/capture/tasks/${taskId}`);
+    const data = (await response.json()) as { task: CaptureTask };
+    setCaptureTask(data.task);
+    setStatusMessage(data.task.message);
+
+    if (data.task.status === "completed") {
+      setBusy(false);
+      await loadWorkspace();
+    }
+
+    if (data.task.status === "failed") {
+      setBusy(false);
+    }
+  }
+
+  async function saveEndpointSelection() {
+    await action("接口确认完成，已重新生成测试用例。", async () => {
+      const response = await fetch(`${apiBase}/api/endpoints/selection`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ endpointIds: selectedEndpointIds })
+      });
+      const data = (await response.json()) as { workspace?: Workspace };
+      await loadWorkspace();
+      if (data.workspace?.testCases.length) {
+        setSelectedNav("cases");
+      }
     });
+  }
+
+  function toggleEndpointSelection(endpointId: string) {
+    setSelectedEndpointIds((current) =>
+      current.includes(endpointId) ? current.filter((id) => id !== endpointId) : [...current, endpointId]
+    );
   }
 
   async function loadHarFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -591,20 +690,34 @@ function App() {
             </Panel>
 
             <Panel title="接口发现结果" icon={<Braces size={18} />}>
+              <div className="confirm-toolbar">
+                <div>
+                  <strong>接口资产确认</strong>
+                  <small>已选择 {selectedEndpointIds.length} / {workspace?.endpoints.length ?? 0} 个接口生成测试用例</small>
+                </div>
+                <button className="primary-button inline-button" onClick={saveEndpointSelection} disabled={busy || selectedEndpointIds.length === 0}>
+                  确认生成用例
+                </button>
+              </div>
               <div className="endpoint-list">
                 {(workspace?.endpoints ?? []).map((endpoint) => (
-                  <button
+                  <div
                     key={endpoint.id}
                     className={`endpoint-row ${activeEndpoint?.id === endpoint.id ? "active" : ""}`}
-                    onClick={() => setSelectedEndpoint(endpoint.id)}
                   >
+                    <input
+                      type="checkbox"
+                      checked={selectedEndpointIds.includes(endpoint.id)}
+                      onChange={() => toggleEndpointSelection(endpoint.id)}
+                      aria-label={`选择 ${endpoint.path}`}
+                    />
                     <span className={`method method-${endpoint.method.toLowerCase()}`}>{endpoint.method}</span>
-                    <span>
+                    <button className="endpoint-main" onClick={() => setSelectedEndpoint(endpoint.id)}>
                       <strong>{endpoint.path}</strong>
                       <small>{endpoint.displayName}</small>
-                    </span>
+                    </button>
                     <RiskBadge risk={endpoint.risk} />
-                  </button>
+                  </div>
                 ))}
               </div>
             </Panel>
@@ -639,8 +752,46 @@ function App() {
         ) : null}
 
         {selectedNav === "reports" ? (
-          <section className="content-grid one-col">
-            <Panel title="执行报告" icon={<Workflow size={18} />} action={<button className="primary-button inline-button" onClick={runTests} disabled={busy}><Play size={16} />运行测试</button>}>
+          <section className="content-grid two-col reports-grid">
+            <Panel title="历史记录" icon={<Workflow size={18} />} action={<button className="primary-button inline-button" onClick={runTests} disabled={busy}><Play size={16} />运行测试</button>}>
+              <div className="run-history-list">
+                {(workspace?.runHistory ?? []).length === 0 ? (
+                  <EmptyText text="还没有历史报告，点击“运行测试”生成第一条记录。" />
+                ) : (
+                  workspace?.runHistory.map((run) => (
+                    <button
+                      key={run.id}
+                      className={`history-row ${activeRun?.id === run.id ? "active" : ""}`}
+                      onClick={() => setSelectedRunId(run.id)}
+                    >
+                      <span>
+                        <strong>{formatDate(run.finishedAt)}</strong>
+                        <small>{run.summary.total} 条用例</small>
+                      </span>
+                      <span className="history-summary">
+                        <b>{run.summary.passed}</b>/<b>{run.summary.failed}</b>/<b>{run.summary.skipped}</b>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </Panel>
+
+            <Panel title="报告明细" icon={<ShieldCheck size={18} />}>
+              {activeRun ? (
+                <div className="run-list">
+                  <div className="report-summary-card">
+                    <strong>本次执行</strong>
+                    <span>通过 {activeRun.summary.passed} · 失败 {activeRun.summary.failed} · 跳过 {activeRun.summary.skipped}</span>
+                  </div>
+                  {activeRun.results.map((result) => <RunResultCard key={result.id} result={result} />)}
+                </div>
+              ) : (
+                <EmptyText text="还没有可查看的报告。" />
+              )}
+            </Panel>
+
+            <Panel title="最近一次报告" icon={<Gauge size={18} />}>
               <div className="run-list">
                 {(workspace?.lastRun ?? []).length === 0 ? (
                   <EmptyText text="还没有执行记录，点击“运行测试”开始。" />
@@ -680,10 +831,21 @@ function App() {
                     />
                   </FormField>
                 </div>
+                {captureTask ? <CaptureTaskCard task={captureTask} /> : null}
               </div>
             </Panel>
 
-            <Panel title="页面元素结果" icon={<Braces size={18} />}>
+            <Panel title="抓取结果" icon={<Braces size={18} />}>
+              <div className="capture-summary-grid">
+                <div className="mini-stat">
+                  <span>接口</span>
+                  <strong>{workspace?.summary.endpoints ?? 0}</strong>
+                </div>
+                <div className="mini-stat">
+                  <span>元素</span>
+                  <strong>{workspace?.capturedElements?.length ?? 0}</strong>
+                </div>
+              </div>
               <div className="test-list">
                 {(workspace?.capturedElements ?? []).length === 0 ? (
                   <EmptyText text="还没有抓到页面元素，请先执行网页抓取。" />
@@ -783,6 +945,36 @@ function RiskBadge({ risk }: { risk: "low" | "medium" | "high" }) {
   };
 
   return <span className={`risk risk-${risk}`}>{map[risk]}</span>;
+}
+
+function CaptureTaskCard({ task }: { task: CaptureTask }) {
+  const statusMap = {
+    queued: "排队中",
+    running: "抓取中",
+    completed: "已完成",
+    failed: "失败"
+  };
+
+  return (
+    <div className={`capture-task capture-${task.status}`}>
+      <div className="run-title">
+        {task.status === "failed" ? <XCircle size={18} /> : task.status === "completed" ? <CheckCircle2 size={18} /> : <Radar size={18} />}
+        <div>
+          <strong>{statusMap[task.status]}</strong>
+          <small>{task.message}</small>
+        </div>
+        <span>{task.id}</span>
+      </div>
+      <div className="kv-list compact-kv">
+        <Kv label="目标地址" value={task.url} />
+        <Kv label="开始时间" value={formatDate(task.startedAt)} />
+        {task.finalUrl ? <Kv label="最终地址" value={task.finalUrl} /> : null}
+        {task.importedRequests !== undefined ? <Kv label="捕获请求" value={String(task.importedRequests)} /> : null}
+        {task.capturedElements !== undefined ? <Kv label="捕获元素" value={String(task.capturedElements)} /> : null}
+      </div>
+      {task.error ? <p>{task.error}</p> : null}
+    </div>
+  );
 }
 
 function EndpointOverview({ endpoint }: { endpoint: Endpoint }) {

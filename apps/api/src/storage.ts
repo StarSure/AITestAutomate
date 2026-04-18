@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { discoverEndpoints, generateTestCases } from "./discovery.js";
 import { sampleRequests } from "./sampleData.js";
-import type { ProjectSettings, RawRequest, WorkspaceState } from "./types.js";
+import type { ProjectSettings, RawRequest, TestRunHistoryItem, WorkspaceState } from "./types.js";
 
 const dbPath = resolve(process.cwd(), ".data", "aitestautomate.db");
 
@@ -61,14 +61,21 @@ export async function loadState(): Promise<WorkspaceState> {
   const parsedRequests = JSON.parse(row.requests_json) as RawRequest[];
   const parsedLastRunPayload = JSON.parse(row.last_run_json) as
     | WorkspaceState["lastRun"]
-    | { lastRun?: WorkspaceState["lastRun"]; capturedElements?: WorkspaceState["capturedElements"] };
+    | {
+        lastRun?: WorkspaceState["lastRun"];
+        runHistory?: WorkspaceState["runHistory"];
+        capturedElements?: WorkspaceState["capturedElements"];
+        selectedEndpointIds?: WorkspaceState["selectedEndpointIds"];
+      };
 
   const hydrated = hydrateState({
     project: parsedProject,
     rawRequests: parsedRequests,
     endpoints: [],
+    selectedEndpointIds: Array.isArray(parsedLastRunPayload) ? [] : parsedLastRunPayload.selectedEndpointIds ?? [],
     testCases: [],
     lastRun: Array.isArray(parsedLastRunPayload) ? parsedLastRunPayload : parsedLastRunPayload.lastRun ?? [],
+    runHistory: Array.isArray(parsedLastRunPayload) ? [] : parsedLastRunPayload.runHistory ?? [],
     capturedElements: Array.isArray(parsedLastRunPayload) ? [] : parsedLastRunPayload.capturedElements ?? [],
     updatedAt: row.updated_at
   });
@@ -82,28 +89,50 @@ export async function saveState(state: WorkspaceState) {
 
 export function createWorkspace(rawRequests: RawRequest[], project: ProjectSettings): WorkspaceState {
   const endpoints = discoverEndpoints(rawRequests, project.baseUrl);
+  const selectedEndpointIds = endpoints.map((endpoint) => endpoint.id);
   const testCases = generateTestCases(endpoints, project);
 
   return {
     project,
     rawRequests,
     endpoints,
+    selectedEndpointIds,
     testCases,
     lastRun: [],
+    runHistory: [],
     capturedElements: [],
     updatedAt: new Date().toISOString()
   };
 }
 
 export function replaceWorkspace(current: WorkspaceState, rawRequests: RawRequest[]) {
-  return createWorkspace(rawRequests, current.project);
+  return {
+    ...createWorkspace(rawRequests, current.project),
+    runHistory: current.runHistory ?? []
+  };
 }
 
 export function updateProject(current: WorkspaceState, project: ProjectSettings) {
+  const next = rebuildWorkspace(current, current.selectedEndpointIds ?? current.endpoints.map((endpoint) => endpoint.id), project);
+
   return {
-    ...createWorkspace(current.rawRequests, project),
+    ...next,
     lastRun: current.lastRun,
+    runHistory: current.runHistory ?? [],
     capturedElements: current.capturedElements ?? []
+  };
+}
+
+export function updateSelectedEndpoints(current: WorkspaceState, selectedEndpointIds: string[]) {
+  return rebuildWorkspace(current, selectedEndpointIds, current.project);
+}
+
+export function appendRunHistory(current: WorkspaceState, run: TestRunHistoryItem): WorkspaceState {
+  return {
+    ...current,
+    lastRun: run.results,
+    runHistory: [run, ...(current.runHistory ?? [])].slice(0, 30),
+    updatedAt: run.finishedAt
   };
 }
 
@@ -122,10 +151,42 @@ function hydrateState(parsed: WorkspaceState): WorkspaceState {
   }
 
   return {
-    ...createWorkspace(parsed.rawRequests ?? sampleRequests, project),
+    ...rebuildWorkspace(
+      {
+        ...parsed,
+        project,
+        rawRequests: parsed.rawRequests ?? sampleRequests,
+        endpoints: [],
+        selectedEndpointIds: parsed.selectedEndpointIds ?? [],
+        testCases: [],
+        lastRun: parsed.lastRun ?? [],
+        runHistory: parsed.runHistory ?? []
+      },
+      parsed.selectedEndpointIds ?? [],
+      project
+    ),
     lastRun: parsed.lastRun ?? [],
+    runHistory: parsed.runHistory ?? [],
     capturedElements: parsed.capturedElements ?? [],
     updatedAt: parsed.updatedAt ?? new Date().toISOString()
+  };
+}
+
+function rebuildWorkspace(current: WorkspaceState, selectedEndpointIds: string[], project: ProjectSettings): WorkspaceState {
+  const endpoints = discoverEndpoints(current.rawRequests ?? sampleRequests, project.baseUrl);
+  const selected = selectedEndpointIds.length > 0 ? selectedEndpointIds.filter((id) => endpoints.some((endpoint) => endpoint.id === id)) : endpoints.map((endpoint) => endpoint.id);
+  const testCases = generateTestCases(
+    endpoints.filter((endpoint) => selected.includes(endpoint.id)),
+    project
+  );
+
+  return {
+    ...current,
+    project,
+    endpoints,
+    selectedEndpointIds: selected,
+    testCases,
+    updatedAt: new Date().toISOString()
   };
 }
 
@@ -145,7 +206,9 @@ function persistWorkspace(state: WorkspaceState) {
       requests_json: JSON.stringify(state.rawRequests),
       last_run_json: JSON.stringify({
         lastRun: state.lastRun,
-        capturedElements: state.capturedElements ?? []
+        runHistory: state.runHistory ?? [],
+        capturedElements: state.capturedElements ?? [],
+        selectedEndpointIds: state.selectedEndpointIds ?? state.endpoints.map((endpoint) => endpoint.id)
       }),
       updated_at: state.updatedAt
     });

@@ -39,6 +39,9 @@ Deliverables:
 - Manual run button
 - Run result page
 - Screenshot and trace collection
+- Web capture task status
+- API asset confirmation before test generation
+- Run history list
 
 Exit criteria:
 
@@ -59,7 +62,7 @@ Deliverables:
 - Docker Compose deployment
 - Project setup screen
 - Environment setup screen
-- Run history
+- Run history trend and filtering
 - Artifact viewer
 - AI failure classification
 - Basic documentation
@@ -119,4 +122,3 @@ Exit criteria:
 - The project can be self-hosted reliably.
 - Contributors can understand how to add features.
 - The core workflow is stable.
-

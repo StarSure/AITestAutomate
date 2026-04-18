@@ -131,7 +131,9 @@ The first technical demo only needs:
 - One login flow
 - One checkout flow
 - One button to run tests
-- One result page
+- One web capture task status page
+- One API asset confirmation step
+- One run history and result page
 - One screenshot artifact
 - One AI failure explanation
 
@@ -146,4 +148,3 @@ You are ready to start development when:
 - At least 3 people say they would try the tool.
 - The MVP scope has not expanded beyond web regression testing.
 - A developer can explain the architecture back to you in simple words.
-

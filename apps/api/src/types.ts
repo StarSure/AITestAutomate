@@ -10,7 +10,7 @@ export type RawRequest = {
   requestBody?: unknown;
   responseBody?: unknown;
   durationMs?: number;
-  source: "sample" | "har" | "manual";
+  source: "sample" | "har" | "manual" | "capture";
 };
 
 export type ProjectSettings = {
@@ -84,12 +84,27 @@ export type TestRunResult = {
   aiExplanation: string;
 };
 
+export type TestRunHistoryItem = {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  summary: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    total: number;
+  };
+  results: TestRunResult[];
+};
+
 export type WorkspaceState = {
   project: ProjectSettings;
   rawRequests: RawRequest[];
   endpoints: ApiEndpoint[];
+  selectedEndpointIds: string[];
   testCases: ApiTestCase[];
   lastRun: TestRunResult[];
+  runHistory: TestRunHistoryItem[];
   capturedElements?: Array<{
     id: string;
     tag: string;

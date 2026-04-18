@@ -14,9 +14,12 @@ It currently focuses on one clear scenario:
 - Import cURL
 - Import manual JSON samples
 - Use a clean Chinese console with left navigation and quick actions
+- Track web capture tasks
+- Confirm discovered APIs before generating test cases
 - Discover business APIs automatically
 - Generate API test cases
 - Run tests and show reports
+- Keep run history
 - Persist workspace state with SQLite
 - Start with Docker Compose
 

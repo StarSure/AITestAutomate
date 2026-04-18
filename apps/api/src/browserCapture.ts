@@ -64,7 +64,7 @@ export async function capturePageSession(input: {
       responseHeaders: response.headers(),
       requestBody: safeJson(requestBody),
       responseBody,
-      source: "manual"
+      source: "capture"
     });
   });
 

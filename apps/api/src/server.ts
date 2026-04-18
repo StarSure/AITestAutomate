@@ -7,8 +7,9 @@ import { z } from "zod";
 import { capturePageSession } from "./browserCapture.js";
 import { parseHar, runTestCases } from "./discovery.js";
 import { parseCurl, parseOpenApi, parsePostmanCollection } from "./importers.js";
-import { createWorkspace, initStorage, loadState, replaceWorkspace, saveState, updateProject } from "./storage.js";
-import type { ProjectSettings, RawRequest, WorkspaceState } from "./types.js";
+import { nanoid } from "nanoid";
+import { appendRunHistory, createWorkspace, initStorage, loadState, replaceWorkspace, saveState, updateProject, updateSelectedEndpoints } from "./storage.js";
+import type { ProjectSettings, RawRequest, TestRunHistoryItem, WorkspaceState } from "./types.js";
 
 const app = Fastify({
   logger: true
@@ -16,6 +17,23 @@ const app = Fastify({
 
 await initStorage();
 let state: WorkspaceState = await loadState();
+
+type CaptureTask = {
+  id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  message: string;
+  url: string;
+  startedAt: string;
+  finishedAt?: string;
+  finalUrl?: string;
+  title?: string;
+  loginAttempted?: boolean;
+  importedRequests?: number;
+  capturedElements?: number;
+  error?: string;
+};
+
+const captureTasks = new Map<string, CaptureTask>();
 
 await app.register(cors, {
   origin: true
@@ -75,6 +93,28 @@ app.post("/api/sample/reset", async () => {
   return {
     ok: true,
     message: "Workspace rebuilt from saved or sample data.",
+    workspace: serializeState(state)
+  };
+});
+
+const endpointSelectionSchema = z.object({
+  endpointIds: z.array(z.string())
+});
+
+app.post("/api/endpoints/selection", async (request, reply) => {
+  const result = endpointSelectionSchema.safeParse(request.body);
+  if (!result.success) {
+    return reply.status(400).send({ ok: false, error: result.error.flatten() });
+  }
+
+  state = updateSelectedEndpoints(state, result.data.endpointIds);
+  state.updatedAt = new Date().toISOString();
+  await saveState(state);
+
+  return {
+    ok: true,
+    selectedEndpointIds: state.selectedEndpointIds,
+    generatedTestCases: state.testCases.length,
     workspace: serializeState(state)
   };
 });
@@ -207,18 +247,25 @@ app.post("/api/discover/manual", async (request, reply) => {
 });
 
 app.post("/api/tests/run", async () => {
-  state.lastRun = await runTestCases(state.testCases);
-  state.updatedAt = new Date().toISOString();
+  const startedAt = new Date().toISOString();
+  const results = await runTestCases(state.testCases);
+  const finishedAt = new Date().toISOString();
+  const run: TestRunHistoryItem = {
+    id: `run_${nanoid(8)}`,
+    startedAt,
+    finishedAt,
+    summary: summarizeRun(results),
+    results
+  };
+
+  state = appendRunHistory(state, run);
   await saveState(state);
 
   return {
     ok: true,
-    results: state.lastRun,
-    summary: {
-      passed: state.lastRun.filter((result) => result.status === "passed").length,
-      failed: state.lastRun.filter((result) => result.status === "failed").length,
-      skipped: state.lastRun.filter((result) => result.status === "skipped").length
-    },
+    run,
+    results,
+    summary: run.summary,
     workspace: serializeState(state)
   };
 });
@@ -235,30 +282,85 @@ app.post("/api/capture/web", async (request, reply) => {
     return reply.status(400).send({ ok: false, error: result.error.flatten() });
   }
 
+  const task = createCaptureTask(result.data.url);
+  captureTasks.set(task.id, task);
+  void runCaptureTask(task.id, result.data);
+
+  return {
+    ok: true,
+    task
+  };
+});
+
+app.get("/api/capture/tasks/:id", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const task = captureTasks.get(id);
+
+  if (!task) {
+    return reply.status(404).send({ ok: false, error: "Capture task not found." });
+  }
+
+  return {
+    ok: true,
+    task,
+    workspace: task.status === "completed" ? serializeState(state) : undefined
+  };
+});
+
+async function runCaptureTask(taskId: string, input: z.infer<typeof webCaptureSchema>) {
+  const task = captureTasks.get(taskId);
+  if (!task) {
+    return;
+  }
+
+  captureTasks.set(taskId, {
+    ...task,
+    status: "running",
+    message: "正在打开页面并监听网络请求..."
+  });
+
   try {
-    const session = await capturePageSession(result.data);
+    const session = await capturePageSession(input);
     state = replaceWorkspace(state, session.requests);
     state.capturedElements = session.elements;
     state.project = {
       ...state.project,
-      baseUrl: new URL(result.data.url).origin
+      baseUrl: new URL(input.url).origin
     };
     state.updatedAt = new Date().toISOString();
     await saveState(state);
 
-    return {
-      ok: true,
+    captureTasks.set(taskId, {
+      ...captureTasks.get(taskId)!,
+      status: "completed",
+      message: "抓取完成，已生成接口资产和页面元素。",
+      finishedAt: new Date().toISOString(),
       finalUrl: session.finalUrl,
       title: session.title,
       loginAttempted: session.loginAttempted,
       importedRequests: session.requests.length,
-      capturedElements: session.elements.length,
-      workspace: serializeState(state)
-    };
+      capturedElements: session.elements.length
+    });
   } catch (error) {
-    return reply.status(500).send({ ok: false, error: String(error) });
+    captureTasks.set(taskId, {
+      ...captureTasks.get(taskId)!,
+      status: "failed",
+      message: "抓取失败，请检查目标地址、网络或登录信息。",
+      finishedAt: new Date().toISOString(),
+      error: String(error)
+    });
   }
-});
+}
+
+function createCaptureTask(url: string): CaptureTask {
+  return {
+    id: `capture_${nanoid(8)}`,
+    status: "queued",
+    message: "抓取任务已创建，等待浏览器启动。",
+    url,
+    startedAt: new Date().toISOString()
+  };
+}
 
 app.get("/", async (_request, reply) => {
   if (existsSync(resolve(webDistPath, "index.html"))) {
@@ -282,9 +384,20 @@ function serializeState(current: WorkspaceState) {
       updatedAt: current.updatedAt
     },
     endpoints: current.endpoints,
+    selectedEndpointIds: current.selectedEndpointIds ?? current.endpoints.map((endpoint) => endpoint.id),
     testCases: current.testCases,
     lastRun: current.lastRun,
+    runHistory: current.runHistory ?? [],
     capturedElements: current.capturedElements ?? []
+  };
+}
+
+function summarizeRun(results: TestRunHistoryItem["results"]) {
+  return {
+    passed: results.filter((result) => result.status === "passed").length,
+    failed: results.filter((result) => result.status === "failed").length,
+    skipped: results.filter((result) => result.status === "skipped").length,
+    total: results.length
   };
 }
 
