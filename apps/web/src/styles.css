@@ -176,55 +176,31 @@ button {
   padding: 24px;
 }
 
-.hero-banner {
-  display: grid;
-  gap: 16px;
-  padding: 20px 22px;
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at top right, rgba(29, 109, 69, 0.08), transparent 18rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(246, 250, 244, 0.76));
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(16px);
-}
-
-.page-header {
+.topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
+  margin-bottom: 16px;
 }
 
-.page-header h1,
-.page-header p,
+.topbar-copy h1,
+.topbar-copy p,
 .panel h2 {
   margin: 0;
 }
 
-.eyebrow-label {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  color: var(--primary);
-  border-radius: 999px;
-  background: var(--primary-soft);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+.topbar-copy h1 {
+  font-size: clamp(1.55rem, 2.5vw, 2rem);
+  letter-spacing: -0.05em;
 }
 
-.page-header h1 {
-  font-size: clamp(1.85rem, 3vw, 2.45rem);
-  letter-spacing: -0.06em;
-}
-
-.page-header p,
+.topbar-copy p,
 .info-block p,
 .detail-line p,
 .empty-inline,
 .run-card p,
-.spotlight-card p {
+.capture-task p {
   color: var(--muted);
   line-height: 1.7;
 }
@@ -234,13 +210,6 @@ button {
   flex-wrap: wrap;
 }
 
-.hero-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta-pill,
 .ghost-chip,
 .risk,
 .enabled,
@@ -253,46 +222,10 @@ button {
   font-weight: 700;
 }
 
-.meta-pill {
-  padding: 8px 12px;
-  color: var(--primary-strong);
-  border: 1px solid rgba(29, 109, 69, 0.1);
-  background: rgba(221, 246, 231, 0.8);
-}
-
-.hero-status-grid,
 .summary-row,
 .content-grid {
   display: grid;
   gap: 16px;
-}
-
-.hero-status-grid {
-  grid-template-columns: 1.1fr 1fr 0.95fr;
-}
-
-.spotlight-card {
-  display: grid;
-  gap: 8px;
-  min-height: 108px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.66);
-  box-shadow: var(--shadow-md);
-}
-
-.spotlight-label {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.spotlight-card strong {
-  font-size: 1.08rem;
-  line-height: 1.45;
 }
 
 .quick-links {
@@ -309,7 +242,7 @@ button {
 
 .summary-row {
   grid-template-columns: repeat(4, 1fr);
-  margin: 16px 0;
+  margin: 0 0 16px;
 }
 
 .content-grid.one-col {
@@ -897,7 +830,6 @@ pre {
     grid-template-rows: auto auto auto auto;
   }
 
-  .hero-status-grid,
   .summary-row,
   .content-grid.two-col,
   .form-grid,
@@ -911,7 +843,7 @@ pre {
     padding: 18px;
   }
 
-  .page-header,
+  .topbar,
   .test-card,
   .run-title,
   .header-actions {

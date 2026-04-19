@@ -26,3 +26,4 @@ All notable changes to this project will be documented in this file.
 - Updated the sidebar footer to link directly to the GitHub repository.
 - Refined the Chinese control panel with a simpler enterprise-style layout and unified local service copy.
 - Added web capture task tracking, API asset confirmation, and run history documentation.
+- Simplified the dashboard header by removing the large placeholder hero area.

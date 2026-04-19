@@ -433,56 +433,22 @@ function App() {
       </aside>
 
       <section className="main-panel">
-        <section className="hero-banner">
-          <header className="page-header">
-            <div>
-              <span className="eyebrow-label">AITestAutomate Console</span>
-              <h1>回归测试工作台</h1>
-              <p>从网页抓取、接口导入到自动生成用例与执行回归，先把测试团队最常用的一条链路跑通。</p>
-            </div>
-            <div className="header-actions">
-              <button className="secondary-button" onClick={resetSample} disabled={busy}>
-                <RotateCcw size={16} />
-                刷新工作区
-              </button>
-              <button className="primary-button" onClick={runTests} disabled={busy}>
-                <Play size={16} />
-                运行测试
-              </button>
-            </div>
-          </header>
-
-          <div className="hero-meta">
-            <span className="meta-pill">社区版 MVP</span>
-            <span className="meta-pill">接口自动化</span>
-            <span className="meta-pill">网页元素抓取</span>
-            <span className="meta-pill">SQLite / Docker</span>
+        <header className="topbar">
+          <div className="topbar-copy">
+            <h1>{navItems.find((item) => item.key === selectedNav)?.label ?? "总览"}</h1>
+            <p>{busy ? "系统处理中..." : `最近更新时间：${formatDate(workspace?.summary.updatedAt)}`}</p>
           </div>
-
-          <div className="hero-status-grid">
-            <div className="spotlight-card">
-              <span className="spotlight-label">当前项目</span>
-              <strong>{workspace?.project.name ?? "AITestAutomate"}</strong>
-              <p>
-                {workspace?.project.baseUrl ? `Base URL：${workspace.project.baseUrl}` : "先配置 Base URL，后续导入和抓取会更顺畅。"}
-              </p>
-            </div>
-            <div className="spotlight-card">
-              <span className="spotlight-label">平台状态</span>
-              <strong>{busy ? "处理中" : "准备就绪"}</strong>
-              <p>{statusMessage}</p>
-            </div>
-            <div className="spotlight-card">
-              <span className="spotlight-label">快捷入口</span>
-              <div className="quick-links">
-                <button className="ghost-chip" onClick={() => setSelectedNav("capture")}>网页抓取</button>
-                <button className="ghost-chip" onClick={() => setSelectedNav("discover")}>接口导入</button>
-                <button className="ghost-chip" onClick={() => setSelectedNav("reports")}>执行报告</button>
-              </div>
-              <p>最近更新时间：{formatDate(workspace?.summary.updatedAt)}</p>
-            </div>
+          <div className="header-actions">
+            <button className="secondary-button" onClick={resetSample} disabled={busy}>
+              <RotateCcw size={16} />
+              刷新工作区
+            </button>
+            <button className="primary-button" onClick={runTests} disabled={busy}>
+              <Play size={16} />
+              运行测试
+            </button>
           </div>
-        </section>
+        </header>
 
         <section className="summary-row">
           <MetricCard title="采集请求" value={workspace?.summary.requests ?? 0} icon={<Upload size={18} />} />
