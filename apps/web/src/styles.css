@@ -245,6 +245,10 @@ button {
   margin: 0 0 16px;
 }
 
+.summary-row-wide {
+  grid-template-columns: repeat(6, 1fr);
+}
+
 .content-grid.one-col {
   grid-template-columns: 1fr;
 }
@@ -473,7 +477,10 @@ button {
 .history-row,
 .capture-task,
 .mini-stat,
-.report-summary-card {
+.report-summary-card,
+.workflow-step,
+.detail-card,
+.check-item {
   border: 1px solid var(--line);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.78);
@@ -618,6 +625,19 @@ button {
   padding: 14px;
 }
 
+.selectable-card {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.selectable-card.active {
+  border-color: rgba(29, 109, 69, 0.22);
+  background: linear-gradient(135deg, rgba(221, 246, 231, 0.88), rgba(255, 255, 255, 0.94));
+}
+
 .confirm-toolbar {
   justify-content: space-between;
   gap: 12px;
@@ -633,7 +653,9 @@ button {
 .history-row strong,
 .history-row small,
 .report-summary-card strong,
-.report-summary-card span {
+.report-summary-card span,
+.check-item strong,
+.check-item small {
   display: block;
 }
 
@@ -646,6 +668,35 @@ button {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pill-ready,
+.pill-active,
+.pill-resolved {
+  color: #1e6b45;
+  background: #e6f5eb;
+}
+
+.pill-draft,
+.pill-open,
+.pill-blocked {
+  color: #9a2d23;
+  background: #fae9e7;
+}
+
+.pill-triaged {
+  color: #8a520e;
+  background: #f9efe4;
 }
 
 .kv-item {
@@ -698,6 +749,89 @@ button {
   display: grid;
   gap: 12px;
   padding: 14px;
+}
+
+.workflow-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-step {
+  padding: 14px;
+}
+
+.workflow-step.ready svg {
+  color: var(--primary);
+}
+
+.workflow-step.pending svg {
+  color: var(--amber);
+}
+
+.detail-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.detail-card p,
+.detail-card small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.toggle-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.toggle-line input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.plan-case-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.slim-toolbar {
+  margin-bottom: 0;
+}
+
+.check-list {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.check-item.active {
+  border-color: rgba(29, 109, 69, 0.22);
+  background: linear-gradient(135deg, rgba(221, 246, 231, 0.88), rgba(255, 255, 255, 0.94));
+}
+
+.check-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.check-item span {
+  display: block;
 }
 
 .capture-task p {
@@ -831,6 +965,7 @@ pre {
   }
 
   .summary-row,
+  .summary-row-wide,
   .content-grid.two-col,
   .form-grid,
   .schema-grid {

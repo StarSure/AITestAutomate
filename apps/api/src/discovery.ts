@@ -127,7 +127,10 @@ export function generateTestCases(endpoints: ApiEndpoint[], project?: ProjectSet
           { type: "schema_shape", expected: endpoint.responseSchema }
         ],
         risk: endpoint.risk,
-        enabled: endpoint.risk !== "high"
+        enabled: endpoint.risk !== "high",
+        reviewStatus: endpoint.risk === "high" ? "draft" : "ready",
+        owner: project?.owner ?? "QA Automation",
+        notes: endpoint.risk === "high" ? "高风险接口默认进入草稿状态，需人工复核后再纳入回归。" : ""
       }
     ];
 
@@ -143,7 +146,10 @@ export function generateTestCases(endpoints: ApiEndpoint[], project?: ProjectSet
         body: example.requestBody,
         assertions: [{ type: "status", expected: [401, 403] }],
         risk: "low",
-        enabled: true
+        enabled: true,
+        reviewStatus: "ready",
+        owner: project?.owner ?? "QA Automation",
+        notes: "鉴权校验用例建议长期保留在冒烟或回归计划中。"
       });
     }
 

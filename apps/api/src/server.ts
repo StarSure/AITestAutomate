@@ -2,14 +2,28 @@ import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { nanoid } from "nanoid";
 import { z } from "zod";
 import { capturePageSession } from "./browserCapture.js";
 import { parseHar, runTestCases } from "./discovery.js";
 import { parseCurl, parseOpenApi, parsePostmanCollection } from "./importers.js";
-import { nanoid } from "nanoid";
-import { appendRunHistory, createWorkspace, initStorage, loadState, replaceWorkspace, saveState, updateProject, updateSelectedEndpoints } from "./storage.js";
-import type { ProjectSettings, RawRequest, TestRunHistoryItem, WorkspaceState } from "./types.js";
+import {
+  appendRunHistory,
+  createWorkspace,
+  initStorage,
+  loadState,
+  replaceWorkspace,
+  saveState,
+  selectPlan,
+  updateDefectStatus,
+  updateProject,
+  updateSelectedEndpoints,
+  updateTestCase,
+  upsertTestPlan
+} from "./storage.js";
+import type { ApiTestCase, DefectItem, ProjectSettings, RawRequest, TestPlan, TestRunHistoryItem, WorkspaceState } from "./types.js";
 
 const app = Fastify({
   logger: true
@@ -39,7 +53,8 @@ await app.register(cors, {
   origin: true
 });
 
-const webDistPath = resolve(process.cwd(), "apps/web/dist");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const webDistPath = resolve(repoRoot, "apps/web/dist");
 if (existsSync(webDistPath)) {
   await app.register(fastifyStatic, {
     root: webDistPath,
@@ -60,7 +75,9 @@ const projectSchema = z.object({
   baseUrl: z.string().url(),
   environmentName: z.string().min(1),
   authMode: z.enum(["none", "bearer", "cookie", "apiKey"]),
-  tokenPlaceholder: z.string().default("")
+  tokenPlaceholder: z.string().default(""),
+  owner: z.string().min(1),
+  notificationChannel: z.string().min(1)
 });
 
 app.post("/api/project", async (request, reply) => {
@@ -84,15 +101,13 @@ app.post("/api/project", async (request, reply) => {
 });
 
 app.post("/api/sample/reset", async () => {
-  state = await loadState();
   state = createWorkspace(state.rawRequests, state.project);
-  state.lastRun = [];
   state.updatedAt = new Date().toISOString();
   await saveState(state);
 
   return {
     ok: true,
-    message: "Workspace rebuilt from saved or sample data.",
+    message: "Workspace rebuilt from current requests and project settings.",
     workspace: serializeState(state)
   };
 });
@@ -115,6 +130,151 @@ app.post("/api/endpoints/selection", async (request, reply) => {
     ok: true,
     selectedEndpointIds: state.selectedEndpointIds,
     generatedTestCases: state.testCases.length,
+    workspace: serializeState(state)
+  };
+});
+
+const testCaseUpdateSchema = z.object({
+  enabled: z.boolean().optional(),
+  reviewStatus: z.enum(["draft", "ready", "blocked"]).optional(),
+  owner: z.string().optional(),
+  notes: z.string().optional()
+});
+
+app.post("/api/testcases/:id", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const result = testCaseUpdateSchema.safeParse(request.body);
+
+  if (!result.success) {
+    return reply.status(400).send({ ok: false, error: result.error.flatten() });
+  }
+
+  if (!state.testCases.some((testCase) => testCase.id === id)) {
+    return reply.status(404).send({ ok: false, error: "Test case not found." });
+  }
+
+  state = updateTestCase(state, id, result.data);
+  await saveState(state);
+
+  return {
+    ok: true,
+    workspace: serializeState(state)
+  };
+});
+
+const planSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  description: z.string().default(""),
+  environmentName: z.string().min(1),
+  owner: z.string().min(1),
+  triggerMode: z.enum(["manual", "scheduled", "ci"]),
+  cadence: z.string().min(1),
+  status: z.enum(["active", "draft"]),
+  caseIds: z.array(z.string()).min(1)
+});
+
+app.post("/api/plans", async (request, reply) => {
+  const result = planSchema.safeParse(request.body);
+  if (!result.success) {
+    return reply.status(400).send({ ok: false, error: result.error.flatten() });
+  }
+
+  state = upsertTestPlan(state, result.data);
+  await saveState(state);
+
+  return {
+    ok: true,
+    workspace: serializeState(state)
+  };
+});
+
+app.post("/api/plans/:id/select", async (request, reply) => {
+  const { id } = request.params as { id: string };
+
+  if (!state.testPlans.some((plan) => plan.id === id)) {
+    return reply.status(404).send({ ok: false, error: "Plan not found." });
+  }
+
+  state = selectPlan(state, id);
+  await saveState(state);
+
+  return {
+    ok: true,
+    workspace: serializeState(state)
+  };
+});
+
+app.post("/api/plans/:id/run", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const plan = state.testPlans.find((item) => item.id === id);
+
+  if (!plan) {
+    return reply.status(404).send({ ok: false, error: "Plan not found." });
+  }
+
+  const runnableCases = getRunnableCases(state.testCases, plan);
+  if (runnableCases.length === 0) {
+    return reply.status(400).send({ ok: false, error: "This plan has no ready test cases to run." });
+  }
+
+  const run = await executePlan(plan, runnableCases);
+  state = selectPlan(state, plan.id);
+  state = appendRunHistory(state, run);
+  await saveState(state);
+
+  return {
+    ok: true,
+    run,
+    summary: run.summary,
+    workspace: serializeState(state)
+  };
+});
+
+app.post("/api/tests/run", async (_request, reply) => {
+  const plan = state.testPlans.find((item) => item.id === state.selectedPlanId) ?? state.testPlans[0];
+
+  if (!plan) {
+    return reply.status(400).send({ ok: false, error: "No execution plan available." });
+  }
+
+  const runnableCases = getRunnableCases(state.testCases, plan);
+  if (runnableCases.length === 0) {
+    return reply.status(400).send({ ok: false, error: "The selected plan has no ready test cases to run." });
+  }
+
+  const run = await executePlan(plan, runnableCases);
+  state = appendRunHistory(selectPlan(state, plan.id), run);
+  await saveState(state);
+
+  return {
+    ok: true,
+    run,
+    summary: run.summary,
+    workspace: serializeState(state)
+  };
+});
+
+const defectStatusSchema = z.object({
+  status: z.enum(["open", "triaged", "resolved"])
+});
+
+app.post("/api/defects/:id/status", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const result = defectStatusSchema.safeParse(request.body);
+  if (!result.success) {
+    return reply.status(400).send({ ok: false, error: result.error.flatten() });
+  }
+
+  if (!state.defects.some((defect) => defect.id === id)) {
+    return reply.status(404).send({ ok: false, error: "Defect not found." });
+  }
+
+  state = updateDefectStatus(state, id, result.data.status);
+  await saveState(state);
+
+  return {
+    ok: true,
     workspace: serializeState(state)
   };
 });
@@ -246,30 +406,6 @@ app.post("/api/discover/manual", async (request, reply) => {
   };
 });
 
-app.post("/api/tests/run", async () => {
-  const startedAt = new Date().toISOString();
-  const results = await runTestCases(state.testCases);
-  const finishedAt = new Date().toISOString();
-  const run: TestRunHistoryItem = {
-    id: `run_${nanoid(8)}`,
-    startedAt,
-    finishedAt,
-    summary: summarizeRun(results),
-    results
-  };
-
-  state = appendRunHistory(state, run);
-  await saveState(state);
-
-  return {
-    ok: true,
-    run,
-    results,
-    summary: run.summary,
-    workspace: serializeState(state)
-  };
-});
-
 const webCaptureSchema = z.object({
   url: z.string().url(),
   username: z.string().optional(),
@@ -362,6 +498,28 @@ function createCaptureTask(url: string): CaptureTask {
   };
 }
 
+async function executePlan(plan: TestPlan, runnableCases: ApiTestCase[]) {
+  const startedAt = new Date().toISOString();
+  const results = await runTestCases(runnableCases);
+  const finishedAt = new Date().toISOString();
+  const run: TestRunHistoryItem = {
+    id: `run_${nanoid(8)}`,
+    planId: plan.id,
+    planName: plan.name,
+    startedAt,
+    finishedAt,
+    summary: summarizeRun(results),
+    results
+  };
+
+  return run;
+}
+
+function getRunnableCases(testCases: ApiTestCase[], plan: TestPlan) {
+  const caseSet = new Set(plan.caseIds);
+  return testCases.filter((testCase) => caseSet.has(testCase.id) && testCase.enabled && testCase.reviewStatus === "ready");
+}
+
 app.get("/", async (_request, reply) => {
   if (existsSync(resolve(webDistPath, "index.html"))) {
     return reply.sendFile("index.html");
@@ -374,20 +532,38 @@ app.get("/", async (_request, reply) => {
 });
 
 function serializeState(current: WorkspaceState) {
+  const selectedPlan = current.testPlans.find((plan) => plan.id === current.selectedPlanId) ?? current.testPlans[0] ?? null;
+  const readyCases = current.testCases.filter((testCase) => testCase.reviewStatus === "ready" && testCase.enabled).length;
+  const openDefects = current.defects.filter((defect) => defect.status !== "resolved").length;
+
   return {
     project: current.project,
     summary: {
       requests: current.rawRequests.length,
       endpoints: current.endpoints.length,
       testCases: current.testCases.length,
+      readyCases,
+      plans: current.testPlans.length,
+      openDefects,
       lastRun: current.lastRun.length,
       updatedAt: current.updatedAt
+    },
+    workflow: {
+      projectReady: Boolean(current.project.name && current.project.baseUrl),
+      assetsReady: current.endpoints.length > 0,
+      casesReady: readyCases > 0,
+      planReady: Boolean(selectedPlan && selectedPlan.caseIds.length > 0),
+      defectsOpen: openDefects
     },
     endpoints: current.endpoints,
     selectedEndpointIds: current.selectedEndpointIds ?? current.endpoints.map((endpoint) => endpoint.id),
     testCases: current.testCases,
+    testPlans: current.testPlans,
+    selectedPlanId: current.selectedPlanId,
+    currentPlan: selectedPlan,
     lastRun: current.lastRun,
     runHistory: current.runHistory ?? [],
+    defects: current.defects ?? [],
     capturedElements: current.capturedElements ?? []
   };
 }

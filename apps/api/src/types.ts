@@ -20,6 +20,8 @@ export type ProjectSettings = {
   environmentName: string;
   authMode: "none" | "bearer" | "cookie" | "apiKey";
   tokenPlaceholder: string;
+  owner: string;
+  notificationChannel: string;
 };
 
 export type ApiEndpoint = {
@@ -61,6 +63,41 @@ export type ApiTestCase = {
   }>;
   risk: "low" | "medium" | "high";
   enabled: boolean;
+  reviewStatus: "draft" | "ready" | "blocked";
+  owner: string;
+  notes: string;
+  lastReviewedAt?: string;
+};
+
+export type TestPlan = {
+  id: string;
+  name: string;
+  description: string;
+  environmentName: string;
+  owner: string;
+  triggerMode: "manual" | "scheduled" | "ci";
+  cadence: string;
+  status: "active" | "draft";
+  caseIds: string[];
+  lastRunId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DefectItem = {
+  id: string;
+  title: string;
+  status: "open" | "triaged" | "resolved";
+  severity: "low" | "medium" | "high";
+  planId?: string;
+  sourceRunId: string;
+  testCaseId: string;
+  endpointId: string;
+  summary: string;
+  assignee: string;
+  createdAt: string;
+  updatedAt: string;
+  lastSeenAt: string;
 };
 
 export type TestRunResult = {
@@ -86,6 +123,8 @@ export type TestRunResult = {
 
 export type TestRunHistoryItem = {
   id: string;
+  planId?: string;
+  planName?: string;
   startedAt: string;
   finishedAt: string;
   summary: {
@@ -103,8 +142,11 @@ export type WorkspaceState = {
   endpoints: ApiEndpoint[];
   selectedEndpointIds: string[];
   testCases: ApiTestCase[];
+  testPlans: TestPlan[];
+  selectedPlanId?: string;
   lastRun: TestRunResult[];
   runHistory: TestRunHistoryItem[];
+  defects: DefectItem[];
   capturedElements?: Array<{
     id: string;
     tag: string;

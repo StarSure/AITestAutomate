@@ -27,3 +27,18 @@ All notable changes to this project will be documented in this file.
 - Refined the Chinese control panel with a simpler enterprise-style layout and unified local service copy.
 - Added web capture task tracking, API asset confirmation, and run history documentation.
 - Simplified the dashboard header by removing the large placeholder hero area.
+
+## 2026-04-21
+
+### Added
+
+- Added a process-driven dashboard that shows the end-to-end QA flow from project setup to defect closure.
+- Added test asset review controls for case status, owner, notes, and execution enablement.
+- Added a task center with persisted execution plans, trigger modes, cadence, and case membership.
+- Added automatic defect creation from failed runs plus triage and resolve status updates.
+
+### Updated
+
+- Updated API persistence to keep plan, case review, and defect state in SQLite-backed workspace storage.
+- Updated runtime path resolution so the production API serves the built frontend reliably from the repo root.
+- Updated the README to document the new workflow-centered platform capabilities.
