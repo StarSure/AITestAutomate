@@ -80,6 +80,14 @@ export type TestPlan = {
   status: "active" | "draft";
   caseIds: string[];
   lastRunId?: string;
+  lastRunAt?: string;
+  nextRunAt?: string;
+  lastRunSummary?: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    total: number;
+  };
   createdAt: string;
   updatedAt: string;
 };

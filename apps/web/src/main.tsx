@@ -118,6 +118,14 @@ type TestPlan = {
   status: "active" | "draft";
   caseIds: string[];
   lastRunId?: string;
+  lastRunAt?: string;
+  nextRunAt?: string;
+  lastRunSummary?: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    total: number;
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -644,6 +652,7 @@ function App() {
                 <Kv label="计划环境" value={activePlan?.environmentName ?? "-"} />
                 <Kv label="计划负责人" value={activePlan?.owner ?? "-"} />
                 <Kv label="计划触发方式" value={triggerModeLabel(activePlan?.triggerMode)} />
+                <Kv label="下次执行" value={formatDate(activePlan?.nextRunAt)} />
                 <Kv label="最近执行" value={activeRun ? `${activeRun.summary.passed}/${activeRun.summary.failed}/${activeRun.summary.skipped}` : "暂无"} />
               </div>
             </Panel>
@@ -943,7 +952,7 @@ function App() {
                     <span>
                       <strong>{plan.name}</strong>
                       <small>
-                        {plan.caseIds.length} 条用例 · {triggerModeLabel(plan.triggerMode)}
+                        {plan.caseIds.length} 条用例 · {triggerModeLabel(plan.triggerMode)} · 下次 {formatDate(plan.nextRunAt)}
                       </small>
                     </span>
                     <span className={`pill pill-${plan.status}`}>{plan.status}</span>
@@ -991,6 +1000,19 @@ function App() {
                         <option value="draft">draft</option>
                       </select>
                     </FormField>
+                  </div>
+
+                  <div className="kv-list compact-kv">
+                    <Kv label="最近执行时间" value={formatDate(planDraft.lastRunAt)} />
+                    <Kv label="下次执行时间" value={formatDate(planDraft.nextRunAt)} />
+                    <Kv
+                      label="最近执行结果"
+                      value={
+                        planDraft.lastRunSummary
+                          ? `${planDraft.lastRunSummary.passed}/${planDraft.lastRunSummary.failed}/${planDraft.lastRunSummary.skipped}`
+                          : "暂无"
+                      }
+                    />
                   </div>
 
                   <div className="plan-case-picker">

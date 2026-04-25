@@ -31,6 +31,7 @@ const app = Fastify({
 
 await initStorage();
 let state: WorkspaceState = await loadState();
+const activePlanRuns = new Set<string>();
 
 type CaptureTask = {
   id: string;
@@ -218,10 +219,7 @@ app.post("/api/plans/:id/run", async (request, reply) => {
     return reply.status(400).send({ ok: false, error: "This plan has no ready test cases to run." });
   }
 
-  const run = await executePlan(plan, runnableCases);
-  state = selectPlan(state, plan.id);
-  state = appendRunHistory(state, run);
-  await saveState(state);
+  const run = await runPlanAndPersist(plan);
 
   return {
     ok: true,
@@ -243,9 +241,7 @@ app.post("/api/tests/run", async (_request, reply) => {
     return reply.status(400).send({ ok: false, error: "The selected plan has no ready test cases to run." });
   }
 
-  const run = await executePlan(plan, runnableCases);
-  state = appendRunHistory(selectPlan(state, plan.id), run);
-  await saveState(state);
+  const run = await runPlanAndPersist(plan);
 
   return {
     ok: true,
@@ -520,6 +516,50 @@ function getRunnableCases(testCases: ApiTestCase[], plan: TestPlan) {
   return testCases.filter((testCase) => caseSet.has(testCase.id) && testCase.enabled && testCase.reviewStatus === "ready");
 }
 
+async function runPlanAndPersist(plan: TestPlan) {
+  if (activePlanRuns.has(plan.id)) {
+    throw new Error(`Plan ${plan.name} is already running.`);
+  }
+
+  const runnableCases = getRunnableCases(state.testCases, plan);
+  if (runnableCases.length === 0) {
+    throw new Error(`Plan ${plan.name} has no ready test cases to run.`);
+  }
+
+  activePlanRuns.add(plan.id);
+  try {
+    const run = await executePlan(plan, runnableCases);
+    state = appendRunHistory(selectPlan(state, plan.id), run);
+    await saveState(state);
+    return run;
+  } finally {
+    activePlanRuns.delete(plan.id);
+  }
+}
+
+async function tickScheduler() {
+  const now = Date.now();
+  const duePlans = state.testPlans.filter((plan) => {
+    if (plan.triggerMode !== "scheduled" || plan.status !== "active" || !plan.nextRunAt) {
+      return false;
+    }
+    return new Date(plan.nextRunAt).getTime() <= now;
+  });
+
+  for (const plan of duePlans) {
+    if (activePlanRuns.has(plan.id)) {
+      continue;
+    }
+
+    try {
+      await runPlanAndPersist(plan);
+      app.log.info({ planId: plan.id, planName: plan.name }, "Scheduled plan executed.");
+    } catch (error) {
+      app.log.error({ planId: plan.id, error }, "Scheduled plan execution failed.");
+    }
+  }
+}
+
 app.get("/", async (_request, reply) => {
   if (existsSync(resolve(webDistPath, "index.html"))) {
     return reply.sendFile("index.html");
@@ -581,3 +621,6 @@ const port = Number(process.env.PORT ?? 4318);
 const host = process.env.HOST ?? "0.0.0.0";
 
 await app.listen({ port, host });
+setInterval(() => {
+  void tickScheduler();
+}, 15_000);

@@ -205,6 +205,9 @@ export function appendRunHistory(current: WorkspaceState, run: TestRunHistoryIte
       ? {
           ...plan,
           lastRunId: run.id,
+          lastRunAt: run.finishedAt,
+          nextRunAt: computeNextRunAt(plan.cadence, run.finishedAt, plan.triggerMode),
+          lastRunSummary: run.summary,
           updatedAt: run.finishedAt
         }
       : plan
@@ -329,17 +332,19 @@ function syncPlans(existingPlans: TestPlan[], testCases: ApiTestCase[], project:
       ...plan,
       caseIds: plan.caseIds.filter((caseId) => caseIds.has(caseId)),
       environmentName: plan.environmentName || project.environmentName,
-      owner: plan.owner || project.owner
+      owner: plan.owner || project.owner,
+      nextRunAt: computeNextRunAt(plan.cadence, plan.lastRunAt ?? now, plan.triggerMode)
     }))
     .filter((plan) => plan.caseIds.length > 0);
 
   const merged = defaultPlans.map((plan) => {
     const existing = sanitizedExisting.find((item) => item.id === plan.id);
-    return existing
+      return existing
       ? {
           ...plan,
           ...existing,
           caseIds: existing.caseIds.length > 0 ? existing.caseIds : plan.caseIds,
+          nextRunAt: computeNextRunAt(existing.cadence || plan.cadence, existing.lastRunAt ?? now, existing.triggerMode || plan.triggerMode),
           updatedAt: existing.updatedAt || plan.updatedAt
         }
       : plan;
@@ -365,6 +370,7 @@ function createDefaultPlans(testCases: ApiTestCase[], project: ProjectSettings, 
       cadence: "按需执行",
       status: "active",
       caseIds: uniqueCaseIds(smokeCases.length > 0 ? smokeCases : readyCases.slice(0, 4)),
+      nextRunAt: undefined,
       createdAt: now,
       updatedAt: now
     },
@@ -378,6 +384,7 @@ function createDefaultPlans(testCases: ApiTestCase[], project: ProjectSettings, 
       cadence: "每日 02:00",
       status: "active",
       caseIds: uniqueCaseIds(readyCases),
+      nextRunAt: computeNextRunAt("每日 02:00", now, "scheduled"),
       createdAt: now,
       updatedAt: now
     },
@@ -391,6 +398,7 @@ function createDefaultPlans(testCases: ApiTestCase[], project: ProjectSettings, 
       cadence: "每次发布候选版本",
       status: authCases.length > 0 ? "active" : "draft",
       caseIds: uniqueCaseIds(authCases.length > 0 ? authCases : readyCases.filter((testCase) => testCase.risk === "low").slice(0, 2)),
+      nextRunAt: undefined,
       createdAt: now,
       updatedAt: now
     }
@@ -496,6 +504,38 @@ function persistWorkspace(state: WorkspaceState) {
       }),
       updated_at: state.updatedAt
     });
+}
+
+function computeNextRunAt(cadence: string, referenceTime: string, triggerMode: TestPlan["triggerMode"]) {
+  if (triggerMode !== "scheduled") {
+    return undefined;
+  }
+
+  const ref = new Date(referenceTime);
+  if (Number.isNaN(ref.getTime())) {
+    return undefined;
+  }
+
+  const dailyMatch = cadence.match(/^每日\s+(\d{1,2}):(\d{2})$/);
+  if (dailyMatch) {
+    const [, hourText, minuteText] = dailyMatch;
+    const next = new Date(ref);
+    next.setHours(Number(hourText), Number(minuteText), 0, 0);
+    if (next.getTime() <= ref.getTime()) {
+      next.setDate(next.getDate() + 1);
+    }
+    return next.toISOString();
+  }
+
+  const hourlyMatch = cadence.match(/^每(\d+)小时$/);
+  if (hourlyMatch) {
+    const [, hoursText] = hourlyMatch;
+    const next = new Date(ref);
+    next.setHours(next.getHours() + Number(hoursText));
+    return next.toISOString();
+  }
+
+  return undefined;
 }
 
 function getDb() {
